@@ -1,0 +1,47 @@
+# Firestore Security Rules
+# Paste these in Firebase Console > Firestore > Rules
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Semesters, Subjects, Units — public read, admin write
+    match /semesters/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /subjects/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /units/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Generated notes — authenticated read, server write (via Admin SDK — bypasses rules)
+    match /generated_notes/{unitId} {
+      allow read: if request.auth != null;
+      allow write: if false;  // Server-side Admin SDK only
+    }
+
+    // Uploaded PDFs metadata — authenticated read, authenticated write
+    match /uploaded_pdfs/{id} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if isAdmin();
+    }
+
+    // Users — own data only, admins can read all
+    match /users/{uid} {
+      allow read:   if request.auth.uid == uid || isAdmin();
+      allow create: if request.auth.uid == uid;
+      allow update: if request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}

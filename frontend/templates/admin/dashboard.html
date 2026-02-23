@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% set page_type = "admin" %}
+{% block title %}Admin Dashboard — NoteNexus{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-10">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-white">Admin Dashboard</h1>
+            <p class="text-gray-400 text-sm mt-1">Manage KBCNMU BCA syllabus structure &amp; content</p>
+        </div>
+        <span class="badge badge-admin">Administrator</span>
+    </div>
+
+    <!-- Stats -->
+    <div id="stats-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        {% for stat in [
+        ("📚","Semesters","semesters-count","#4F46E5"),
+        ("📖","Subjects","subjects-count","#7C3AED"),
+        ("📂","Units","units-count","#06B6D4"),
+        ("📄","PDFs Uploaded","pdfs-count","#10B981")
+        ] %}
+        <div class="stat-card text-center">
+            <div class="text-3xl mb-1">{{ stat[0] }}</div>
+            <div id="{{ stat[2] }}" class="text-3xl font-bold" style="color:{{ stat[3] }}">—</div>
+            <div class="text-gray-400 text-xs mt-1">{{ stat[1] }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Quick Actions -->
+    <h2 class="text-xl font-bold text-white mb-4">Quick Actions</h2>
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+        {% for action in [
+        ("/admin/semesters","➕","Create Semester","Add a new BCA semester","#4F46E5"),
+        ("/admin/subjects","📖","Create Subject","Add subjects to a semester","#7C3AED"),
+        ("/admin/units","📂","Create Unit","Add units to a subject","#06B6D4"),
+        ("/admin/upload","📤","Upload PDF","Upload syllabus or notes PDF","#10B981")
+        ] %}
+        <a href="{{ action[0] }}" class="glass-card p-5 block no-underline group">
+            <div class="text-2xl mb-2">{{ action[1] }}</div>
+            <h3 class="text-white font-semibold group-hover:text-indigo-300 transition-colors">{{ action[2] }}</h3>
+            <p class="text-gray-400 text-xs mt-1">{{ action[3] }}</p>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- Recent PDFs -->
+    <div class="glass-card p-6">
+        <h2 class="text-lg font-bold text-white mb-4">📄 Recent PDF Uploads</h2>
+        <div id="recent-pdfs" class="space-y-2">
+            <div class="flex items-center justify-center py-8 text-gray-500">
+                <div class="spinner mr-3"></div> Loading...
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const { profile } = await requireAuth(p => p?.role === 'admin');
+
+        // Load semesters count
+        try {
+            const semData = await apiCall('GET', '/api/admin/semesters');
+            const sems = semData.semesters || [];
+            document.getElementById('semesters-count').textContent = sems.length;
+
+            // Load subjects for all semesters
+            let totalSubjects = 0;
+            let totalUnits = 0;
+            for (const sem of sems) {
+                const sd = await apiCall('GET', `/api/admin/subjects/${sem.id}`);
+                const subjects = sd.subjects || [];
+                totalSubjects += subjects.length;
+                for (const subj of subjects) {
+                    const ud = await apiCall('GET', `/api/admin/units/${subj.id}`);
+                    totalUnits += (ud.units || []).length;
+                }
+            }
+            document.getElementById('subjects-count').textContent = totalSubjects;
+            document.getElementById('units-count').textContent = totalUnits;
+            document.getElementById('pdfs-count').textContent = '—';
+        } catch (e) {
+            console.warn('Stats load error:', e);
+        }
+
+        // Recent PDFs placeholder
+        document.getElementById('recent-pdfs').innerHTML = `
+    <p class="text-gray-400 text-sm text-center py-4">PDF activity will appear here after uploads.</p>
+  `;
+    });
+</script>
+{% endblock %}

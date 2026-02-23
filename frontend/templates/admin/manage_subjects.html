@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% set page_type = "admin" %}
+{% block title %}Manage Subjects — NoteNexus{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-10">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between mb-8">
+        <div class="flex items-center gap-3">
+            <a href="/admin" class="text-gray-400 hover:text-white text-sm">← Admin</a>
+            <span class="text-gray-600">/</span>
+            <h1 class="text-2xl font-bold text-white">Manage Subjects</h1>
+        </div>
+        <button id="import-btn" onclick="importSyllabus()"
+            class="btn-secondary py-2 px-4 text-sm flex items-center gap-2">
+            📥 Import Semester Subjects
+        </button>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+        <div class="glass-card p-6">
+            <h2 class="text-lg font-semibold text-white mb-4">➕ Create Subject</h2>
+            <form id="subj-form" class="space-y-4">
+                <div>
+                    <label class="text-sm text-gray-300 mb-1 block">Semester</label>
+                    <select id="semester-sel" class="form-input" required>
+                        <option value="">Loading semesters...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-300 mb-1 block">Subject Name</label>
+                    <input id="subj-name" type="text" class="form-input" placeholder="e.g. Data Structures" required />
+                </div>
+                <div>
+                    <label class="text-sm text-gray-300 mb-1 block">Subject Code (optional)</label>
+                    <input id="subj-code" type="text" class="form-input" placeholder="e.g. BCA202" />
+                </div>
+                <button type="submit" id="subj-btn" class="btn-primary w-full justify-center">Create Subject</button>
+            </form>
+        </div>
+
+        <div class="glass-card p-6">
+            <h2 class="text-lg font-semibold text-white mb-3">Filter by Semester</h2>
+            <select id="filter-sem" class="form-input mb-4">
+                <option value="">Select semester...</option>
+            </select>
+            <div id="subj-list" class="space-y-2">
+                <p class="text-gray-500 text-sm text-center py-4">Select a semester to see subjects.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function importSyllabus() {
+        if (!confirm('This will automatically create Semester 1 & 2 with all subjects. Continue?')) return;
+        const btn = document.getElementById('import-btn');
+        btn.disabled = true; btn.innerHTML = '⏳ Importing...';
+        try {
+            await apiCall('POST', '/api/admin/import-syllabus');
+            showToast('Syllabus imported successfully!', 'success');
+            await loadSemesterOptions();
+            const filterSem = document.getElementById('filter-sem').value;
+            if (filterSem) loadSubjects(filterSem);
+        } catch (e) { showToast(e.message, 'error'); }
+        finally { btn.disabled = false; btn.innerHTML = '📥 Import Semester Subjects'; }
+    }
+
+    async function loadSemesterOptions() {
+        const data = await apiCall('GET', '/api/admin/semesters');
+        const sems = data.semesters || [];
+        const opts = sems.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        document.getElementById('semester-sel').innerHTML = `<option value="">Select semester</option>${opts}`;
+        document.getElementById('filter-sem').innerHTML = `<option value="">Select semester...</option>${opts}`;
+    }
+
+    async function deleteSubject(subjId, name) {
+        if (!confirm(`Are you sure you want to delete "${name}"? This will also delete all its units and notes.`)) return;
+        try {
+            await apiCall('DELETE', `/api/admin/subjects/${subjId}`);
+            showToast(`Subject "${name}" deleted.`, 'success');
+            const filterSem = document.getElementById('filter-sem').value;
+            if (filterSem) loadSubjects(filterSem);
+        } catch (e) { showToast(e.message, 'error'); }
+    }
+
+    async function loadSubjects(semId) {
+        const list = document.getElementById('subj-list');
+        list.innerHTML = '<div class="flex justify-center py-4"><div class="spinner"></div></div>';
+        try {
+            const data = await apiCall('GET', `/api/admin/subjects/${semId}`);
+            const subjects = data.subjects || [];
+            if (!subjects.length) { list.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No subjects yet.</p>'; return; }
+            list.innerHTML = subjects.map(s => `
+      <div class="flex items-center justify-between p-3 rounded-lg" style="background:rgba(255,255,255,0.05)">
+        <div>
+          <p class="text-white font-medium">${s.name}</p>
+          <p class="text-gray-500 text-xs">${s.code || 'No code'}</p>
+        </div>
+        <button onclick="deleteSubject('${s.id}', '${s.name}')" class="text-red-400 hover:text-red-300 p-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+        </button>
+      </div>`).join('');
+        } catch (e) { list.innerHTML = `<p class="text-red-400 text-sm">${e.message}</p>`; }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await requireAuth(p => p?.role === 'admin');
+        loadSemesterOptions();
+
+        document.getElementById('filter-sem').addEventListener('change', e => { if (e.target.value) loadSubjects(e.target.value); });
+
+        document.getElementById('subj-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('subj-btn');
+            btn.disabled = true; btn.textContent = 'Creating...';
+            try {
+                const semesterId = document.getElementById('semester-sel').value;
+                const name = document.getElementById('subj-name').value.trim();
+                const code = document.getElementById('subj-code').value.trim();
+                await apiCall('POST', '/api/admin/subjects', { semesterId, name, code });
+                showToast(`Subject "${name}" created!`, 'success');
+                document.getElementById('subj-form').reset();
+                const filterSem = document.getElementById('filter-sem').value;
+                if (filterSem === semesterId) loadSubjects(semesterId);
+            } catch (err) { showToast(err.message, 'error'); }
+            finally { btn.disabled = false; btn.textContent = 'Create Subject'; }
+        });
+    });
+</script>
+{% endblock %}

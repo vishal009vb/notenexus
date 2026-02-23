@@ -1,0 +1,14 @@
+[
+  {
+    "id": "333ac4d9-3943-41df-bf03-814bd01b7583",
+    "name": "Semester I",
+    "order": 1,
+    "createdAt": "2026-02-22T20:56:45.619784"
+  },
+  {
+    "id": "b10f61f6-0047-436f-9e5e-e0f2ca67f0dc",
+    "name": "Semester II",
+    "order": 1,
+    "createdAt": "2026-02-22T20:56:54.190481"
+  }
+]

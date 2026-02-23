@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+{% set page_type = "protected" %}
+{% block title %}Unit Notes — NoteNexus{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <a href="/browse" class="text-gray-400 hover:text-white text-sm">← Browse</a>
+            </div>
+            <h1 id="unit-title" class="text-2xl font-bold text-white">Loading notes...</h1>
+            <p class="text-gray-400 text-sm mt-1">KBCNMU BCA · AI-Generated · NEP 2020</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <button id="mark-done-btn"
+                class="px-5 py-2.5 rounded-lg border border-white/10 text-gray-400 hover:text-white transition-colors text-sm font-medium flex items-center gap-2">
+                <span id="mark-done-icon">⬜</span> <span id="mark-done-text">Mark as Learned</span>
+            </button>
+            <a id="quiz-link" href="#"
+                class="hidden px-5 py-2.5 rounded-lg border border-indigo-500/50 text-indigo-400 hover:bg-indigo-500/10 transition-colors text-sm font-medium">
+                🎯 Take AI Quiz
+            </a>
+            <button id="download-btn" class="btn-primary py-2.5 px-5" disabled onclick="downloadPDF()">
+                📥 Download PDF
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-state" class="glass-card p-12 text-center">
+        <div class="spinner mx-auto mb-4"></div>
+        <h2 class="text-xl font-semibold text-white mb-2">🤖 AI is generating your notes...</h2>
+        <p class="text-gray-400 text-sm">This happens only once per unit. It may take 30–60 seconds.</p>
+        <div class="mt-4 progress-bar max-w-xs mx-auto">
+            <div id="gen-progress" class="progress-fill" style="width:5%;animation:grow 45s linear forwards"></div>
+        </div>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state" class="glass-card p-10 text-center hidden">
+        <div class="text-4xl mb-3">⚠️</div>
+        <h2 class="text-xl font-semibold text-white mb-2">Notes Not Available Yet</h2>
+        <p id="error-msg" class="text-gray-400 text-sm mb-6">No PDFs have been uploaded for this unit.</p>
+        <a href="/upload-notes" class="btn-primary">📤 Upload a PDF</a>
+    </div>
+
+    <!-- Notes View (hidden until loaded) -->
+    <div id="notes-view" class="hidden">
+        <!-- Status badge -->
+        <div class="flex items-center gap-2 mb-5">
+            <span id="cache-badge" class="badge badge-cached">✓ Cached</span>
+            <span class="text-gray-500 text-xs" id="generated-at"></span>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-1">
+            <button class="tab-btn active" data-tab="definitions" onclick="switchTab(this,'definitions')">📖
+                Definitions</button>
+            <button class="tab-btn" data-tab="key_points" onclick="switchTab(this,'key_points')">🔑 Key Points</button>
+            <button class="tab-btn" data-tab="short_notes" onclick="switchTab(this,'short_notes')">📝 Short
+                Notes</button>
+            <button class="tab-btn" data-tab="long_answers" onclick="switchTab(this,'long_answers')">📚 Long
+                Answers</button>
+            <button class="tab-btn" data-tab="important_questions" onclick="switchTab(this,'important_questions')">❓
+                Imp. Questions</button>
+            <button class="tab-btn" data-tab="flashcards" onclick="switchTab(this,'flashcards')">🃏 Revision
+                Cards</button>
+            <button class="tab-btn" data-tab="quick_revision" onclick="switchTab(this,'quick_revision')">⚡ Quick
+                Revision</button>
+        </div>
+
+        <!-- Tab: Definitions -->
+        <div id="tab-definitions" class="tab-content active glass-card p-6">
+            <h2 class="text-lg font-bold text-white mb-4">📖 Definitions</h2>
+            <div id="defs-list" class="space-y-3"></div>
+        </div>
+
+        <!-- Tab: Key Points -->
+        <div id="tab-key_points" class="tab-content glass-card p-6">
+            <h2 class="text-lg font-bold text-white mb-4">🔑 Key Points</h2>
+            <ul id="kp-list" class="space-y-2"></ul>
+        </div>
+
+        <!-- Tab: Short Notes -->
+        <div id="tab-short_notes" class="tab-content glass-card p-6">
+            <h2 class="text-lg font-bold text-white mb-4">📝 Short Notes</h2>
+            <div id="sn-list" class="space-y-5"></div>
+        </div>
+
+        <!-- Tab: Long Answers -->
+        <div id="tab-long_answers" class="tab-content glass-card p-6">
+            <h2 class="text-lg font-bold text-white mb-4">📚 Long Answers</h2>
+            <div id="la-list" class="space-y-6"></div>
+        </div>
+
+        <!-- Tab: Important Questions -->
+        <div id="tab-important_questions" class="tab-content glass-card p-6">
+            <h2 class="text-lg font-bold text-white mb-4">❓ Important Questions</h2>
+            <ol id="iq-list" class="space-y-2 list-none"></ol>
+        </div>
+
+        <!-- Tab: Quick Revision -->
+        <div id="tab-quick_revision" class="tab-content glass-card p-6">
+            <h2 class="text-lg font-bold text-white mb-4">⚡ Quick Revision</h2>
+            <div id="qr-list" class="grid sm:grid-cols-2 gap-2"></div>
+        </div>
+
+        <!-- Tab: Flashcards -->
+        <div id="tab-flashcards" class="tab-content glass-card p-6 text-center">
+            <h2 class="text-lg font-bold text-white mb-2">🃏 Revision Flashcards</h2>
+            <p class="text-gray-400 text-sm mb-8">Click the card to flip and reveal the answer.</p>
+
+            <div id="flashcard-loader" class="py-10 hidden">
+                <div class="spinner mx-auto mb-3"></div>
+                <p class="text-gray-500 text-sm">AI is preparing your revision cards...</p>
+            </div>
+
+            <div id="flashcard-wrapper" class="hidden flex flex-col items-center">
+                <div class="flip-card" onclick="this.classList.toggle('flipped')">
+                    <div class="flip-card-inner">
+                        <div
+                            class="flip-card-front glass-card flex items-center justify-center p-8 text-xl font-bold text-white shadow-2xl">
+                            <span id="fc-front">Question</span>
+                        </div>
+                        <div
+                            class="flip-card-back glass-card flex items-center justify-center p-8 text-lg text-gray-200 shadow-2xl overflow-y-auto">
+                            <span id="fc-back">Answer</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-6 mt-8">
+                    <button onclick="prevFC()" class="text-gray-400 hover:text-white transition-colors">← Prev</button>
+                    <span class="text-indigo-400 font-bold" id="fc-counter">1 / 10</span>
+                    <button onclick="nextFC()" class="text-gray-400 hover:text-white transition-colors">Next →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Tabs */
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    .tab-btn.active {
+        background: rgba(79, 70, 229, 0.2);
+        border-color: #4F46E5;
+        color: white;
+    }
+
+    /* Flashcards */
+    .flip-card {
+        background-color: transparent;
+        width: 100%;
+        max-width: 500px;
+        height: 300px;
+        perspective: 1000px;
+        cursor: pointer;
+    }
+
+    .flip-card-inner {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        transform-style: preserve-3d;
+    }
+
+    .flip-card.flipped .flip-card-inner {
+        transform: rotateY(180deg);
+    }
+
+    .flip-card-front,
+    .flip-card-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+        border-radius: 1.5rem;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(12px);
+    }
+
+    .flip-card-back {
+        transform: rotateY(180deg);
+        background: linear-gradient(135deg, rgba(79, 70, 229, 0.1), rgba(124, 58, 237, 0.1)) !important;
+        border-color: rgba(79, 70, 229, 0.3) !important;
+    }
+</style>
+
+<script>
+    const UNIT_ID = "{{ unit_id }}";
+    let notesData = null;
+    let unitTitle = "Unit Notes";
+    let flashcards = [];
+    let fcIdx = 0;
+
+    async function loadFlashcards() {
+        if (flashcards.length > 0) return;
+
+        const loader = document.getElementById('flashcard-loader');
+        const wrapper = document.getElementById('flashcard-wrapper');
+
+        loader.classList.remove('hidden');
+        wrapper.classList.add('hidden');
+
+        try {
+            const data = await apiCall('GET', `/api/notes/flashcards/${UNIT_ID}`);
+            flashcards = data.flashcards || [];
+            if (flashcards.length === 0) throw new Error("No flashcards generated.");
+
+            renderFC();
+            loader.classList.add('hidden');
+            wrapper.classList.remove('hidden');
+        } catch (e) {
+            showToast('Flashcard error: ' + e.message, 'error');
+            loader.innerHTML = `<p class="text-red-400 text-sm">${e.message}</p>`;
+        }
+    }
+
+    function renderFC() {
+        const card = flashcards[fcIdx];
+        const flipCard = document.querySelector('.flip-card');
+        flipCard.classList.remove('flipped'); // Reset flip state
+
+        setTimeout(() => {
+            document.getElementById('fc-front').textContent = card.front;
+            document.getElementById('fc-back').textContent = card.back;
+            document.getElementById('fc-counter').textContent = `${fcIdx + 1} / ${flashcards.length}`;
+        }, 150);
+    }
+
+    function nextFC() {
+        if (fcIdx < flashcards.length - 1) {
+            fcIdx++;
+            renderFC();
+        } else {
+            showToast('End of flashcards!', 'info');
+        }
+    }
+
+    function prevFC() {
+        if (fcIdx > 0) {
+            fcIdx--;
+            renderFC();
+        }
+    }
+
+    function switchTab(btn, tabName) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + tabName).classList.add('active');
+
+        if (tabName === 'flashcards') {
+            loadFlashcards();
+        }
+    }
+
+    function renderNotes(notes) {
+        notesData = notes;
+
+        // Definitions
+        const defs = notes.definitions || [];
+        document.getElementById('defs-list').innerHTML = defs.map(d => `
+    <div class="def-card">
+      <p class="text-indigo-300 font-semibold text-sm mb-1">${escHtml(d.term || '')}</p>
+      <p class="text-gray-300 text-sm">${escHtml(d.definition || '')}</p>
+    </div>`).join('') || '<p class="text-gray-500">No definitions generated.</p>';
+
+        // Key Points
+        const kp = notes.key_points || [];
+        document.getElementById('kp-list').innerHTML = kp.map(p => `
+    <li class="flex items-start gap-2 text-gray-300 text-sm">
+      <span class="text-indigo-400 font-bold mt-0.5">•</span>
+      <span>${escHtml(String(p))}</span>
+    </li>`).join('') || '<p class="text-gray-500">No key points generated.</p>';
+
+        // Short Notes
+        const sn = notes.short_notes || [];
+        document.getElementById('sn-list').innerHTML = sn.map(n => `
+    <div class="p-4 rounded-lg" style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25)">
+      <p class="text-secondary font-semibold mb-2">${escHtml(n.title || '')}</p>
+      <p class="text-gray-300 text-sm leading-relaxed">${escHtml(n.content || '')}</p>
+    </div>`).join('') || '<p class="text-gray-500">No short notes generated.</p>';
+
+        // Long Answers
+        const la = notes.long_answers || [];
+        document.getElementById('la-list').innerHTML = la.map((a, i) => `
+    <div>
+      <div class="flex items-start gap-3 mb-3">
+        <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+             style="background:rgba(79,70,229,0.3);color:#818CF8">Q${i + 1}</div>
+        <p class="text-white font-semibold">${escHtml(a.question || '')}</p>
+      </div>
+      <div class="ml-10 bg-white/5 p-4 rounded-lg text-gray-300 text-sm leading-relaxed border-l-2 border-indigo-500">
+        ${escHtml(a.answer || '').replace(/\n/g, '<br/>')}
+      </div>
+    </div>`).join('') || '<p class="text-gray-500">No long answers generated.</p>';
+
+        // Important Questions
+        const iq = notes.important_questions || [];
+        document.getElementById('iq-list').innerHTML = iq.map((q, i) => `
+    <li class="flex items-start gap-3 p-3 rounded-lg" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2)">
+      <span class="text-yellow-400 font-bold text-sm w-5 flex-shrink-0">${i + 1}.</span>
+      <span class="text-gray-300 text-sm">${escHtml(String(q))}</span>
+    </li>`).join('') || '<p class="text-gray-500">No important questions generated.</p>';
+
+        // Quick Revision
+        const qr = notes.quick_revision || [];
+        document.getElementById('qr-list').innerHTML = qr.map(f => `
+    <div class="flex items-start gap-2 p-3 rounded-lg" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
+      <span class="text-green-400 flex-shrink-0">✓</span>
+      <span class="text-gray-300 text-sm">${escHtml(String(f))}</span>
+    </div>`).join('') || '<p class="text-gray-500">No quick revision facts generated.</p>';
+    }
+
+    function escHtml(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async function downloadPDF() {
+        if (!notesData) return;
+        const btn = document.getElementById('download-btn');
+        btn.disabled = true; btn.innerHTML = '⏳ Generating PDF...';
+        try {
+            const token = await getIdToken();
+            const res = await fetch('/api/export/pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ notes: notesData, unitTitle })
+            });
+            if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `NoteNexus_${unitTitle}.pdf`; a.click();
+            URL.revokeObjectURL(url);
+            showToast('PDF downloaded! 📥', 'success');
+        } catch (e) { showToast('PDF error: ' + e.message, 'error'); }
+        finally { btn.disabled = false; btn.innerHTML = '📥 Download PDF'; }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await requireAuth();
+
+        try {
+            const result = await apiCall('GET', `/api/notes/${UNIT_ID}`);
+
+            document.getElementById('loading-state').classList.add('hidden');
+
+            if (result.status === 'error') {
+                document.getElementById('error-state').classList.remove('hidden');
+                document.getElementById('error-msg').textContent = result.message || 'Notes unavailable.';
+                return;
+            }
+
+            const notes = result.notes || {};
+            unitTitle = notes.unitId ? document.title : (notes.title || 'Unit Notes');
+
+            // Try to get unit title from Firestore (via admin API) — best effort
+            document.getElementById('unit-title').textContent = 'Unit Notes';
+
+            if (result.status === 'cached') {
+                document.getElementById('cache-badge').innerHTML = '✓ Cached Notes';
+                document.getElementById('generated-at').textContent = notes.generatedAt
+                    ? `Generated: ${new Date(notes.generatedAt._seconds * 1000).toLocaleDateString()}`
+                    : '';
+            } else {
+                document.getElementById('cache-badge').innerHTML = '🤖 Freshly Generated';
+                document.getElementById('cache-badge').className = 'badge badge-new';
+            }
+
+            renderNotes(notes);
+            document.getElementById('notes-view').classList.remove('hidden');
+            document.getElementById('download-btn').disabled = false;
+
+            // Setup Quiz link
+            const quizLink = document.getElementById('quiz-link');
+            quizLink.href = `/quiz/${UNIT_ID}`;
+            quizLink.classList.remove('hidden');
+
+            // Check Progress
+            const prog = await apiCall('GET', '/api/student/progress').catch(() => ({}));
+            const isDone = (prog.progress || {})[UNIT_ID] === 'learned';
+            updateMarkDoneUI(isDone);
+
+            document.getElementById('mark-done-btn').onclick = async () => {
+                const btn = document.getElementById('mark-done-btn');
+                const currText = document.getElementById('mark-done-text').textContent;
+                const newStatus = currText === 'Mark as Learned' ? 'learned' : 'todo';
+
+                btn.disabled = true;
+                try {
+                    await apiCall('POST', '/api/student/progress', { unitId: UNIT_ID, status: newStatus });
+                    updateMarkDoneUI(newStatus === 'learned');
+                    showToast(newStatus === 'learned' ? 'Unit marked as learned! 🎓' : 'Unit reset.', 'success');
+                } catch (e) { showToast(e.message, 'error'); }
+                finally { btn.disabled = false; }
+            };
+
+        } catch (e) {
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('error-state').classList.remove('hidden');
+            document.getElementById('error-msg').textContent = e.message;
+        }
+    });
+
+    function updateMarkDoneUI(isDone) {
+        const btn = document.getElementById('mark-done-btn');
+        const icon = document.getElementById('mark-done-icon');
+        const text = document.getElementById('mark-done-text');
+
+        if (isDone) {
+            btn.classList.add('border-green-500/50', 'text-green-400');
+            btn.classList.remove('text-gray-400');
+            icon.textContent = '✅';
+            text.textContent = 'Learned';
+        } else {
+            btn.classList.remove('border-green-500/50', 'text-green-400');
+            btn.classList.add('text-gray-400');
+            icon.textContent = '⬜';
+            text.textContent = 'Mark as Learned';
+        }
+    }
+</script>
+{% endblock %}

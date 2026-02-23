@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% set page_type = "admin" %}
+{% block title %}Manage Semesters — NoteNexus{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-10">
+    <div class="flex items-center gap-3 mb-8">
+        <a href="/admin" class="text-gray-400 hover:text-white text-sm">← Admin</a>
+        <span class="text-gray-600">/</span>
+        <h1 class="text-2xl font-bold text-white">Manage Semesters</h1>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-6">
+        <div class="glass-card p-6">
+            <h2 class="text-lg font-semibold text-white mb-4">➕ Create Semester</h2>
+            <form id="sem-form" class="space-y-4">
+                <div>
+                    <label class="text-sm text-gray-300 mb-1 block">Semester Name</label>
+                    <input id="sem-name" type="text" class="form-input" placeholder="e.g. Semester 1" required />
+                </div>
+                <div>
+                    <label class="text-sm text-gray-300 mb-1 block">Display Order</label>
+                    <input id="sem-order" type="number" class="form-input" value="1" min="1" required />
+                </div>
+                <button type="submit" id="sem-btn" class="btn-primary w-full justify-center">Create Semester</button>
+            </form>
+        </div>
+
+        <div class="glass-card p-6">
+            <h2 class="text-lg font-semibold text-white mb-4">All Semesters</h2>
+            <div id="sem-list" class="space-y-3">
+                <div class="flex justify-center py-4">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    async function loadSemesters() {
+        const list = document.getElementById('sem-list');
+        try {
+            const data = await apiCall('GET', '/api/admin/semesters');
+            const sems = data.semesters || [];
+            if (!sems.length) {
+                list.innerHTML = '<p class="text-gray-500 text-sm text-center py-4">No semesters found.</p>';
+                return;
+            }
+            list.innerHTML = sems.map(s => `
+                <div class="flex items-center justify-between p-4 rounded-lg" style="background:rgba(255,255,255,0.05)">
+                    <div>
+                        <p class="text-white font-medium">${s.name}</p>
+                        <p class="text-gray-500 text-xs">Order: ${s.order}</p>
+                    </div>
+                    <button onclick="deleteSemester('${s.id}', '${s.name}')" class="text-red-400 hover:text-red-300 p-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
+                </div>
+            `).join('');
+        } catch (e) {
+            list.innerHTML = `<p class="text-red-400 text-sm">${e.message}</p>`;
+        }
+    }
+
+    async function deleteSemester(id, name) {
+        if (!confirm(`CAUTION: Are you sure you want to delete "${name}"?\n\nThis will delete ALL subjects, units, and notes inside this semester. This cannot be undone.`)) return;
+        try {
+            await apiCall('DELETE', `/api/admin/semesters/${id}`);
+            showToast(`"${name}" deleted successfully.`, 'success');
+            loadSemesters();
+        } catch (e) {
+            showToast(e.message, 'error');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await requireAuth(p => p?.role === 'admin');
+        loadSemesters();
+
+        document.getElementById('sem-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('sem-btn');
+            btn.disabled = true; btn.textContent = 'Creating...';
+            try {
+                const name = document.getElementById('sem-name').value.trim();
+                const order = parseInt(document.getElementById('sem-order').value);
+                await apiCall('POST', '/api/admin/semesters', { name, order });
+                showToast(`Semester "${name}" created!`, 'success');
+                document.getElementById('sem-form').reset();
+                loadSemesters();
+            } catch (err) {
+                showToast(err.message, 'error');
+            } finally {
+                btn.disabled = false; btn.textContent = 'Create Semester';
+            }
+        });
+    });
+</script>
+{% endblock %}

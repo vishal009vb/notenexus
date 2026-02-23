@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% set page_type = "protected" %}
+{% block title %}Upload PDF — NoteNexus Admin{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-10">
+    <div class="flex items-center gap-3 mb-8">
+        <a href="/admin" class="text-gray-400 hover:text-white text-sm">← Admin</a>
+        <span class="text-gray-600">/</span>
+        <h1 class="text-2xl font-bold text-white">Upload PDF</h1>
+    </div>
+
+    <div class="glass-card p-8">
+        <form id="upload-form" class="space-y-5">
+            <!-- Semester/Subject/Unit selectors -->
+            <div class="grid md:grid-cols-3 gap-4">
+                <div>
+                    <label class="text-sm text-gray-300 mb-1 block">Semester *</label>
+                    <select id="sem-sel" class="form-input" required>
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-300 mb-1 block">Subject *</label>
+                    <select id="subj-sel" class="form-input" required disabled>
+                        <option value="">Select semester first</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-300 mb-1 block">Unit *</label>
+                    <select id="unit-sel" class="form-input" required disabled>
+                        <option value="">Select subject first</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Drop zone -->
+            <div id="drop-zone" class="drop-zone">
+                <input id="pdf-input" type="file" accept=".pdf" class="hidden" required />
+                <div id="drop-text">
+                    <div class="text-4xl mb-2">📄</div>
+                    <p class="text-white font-medium">Drop PDF here or <button type="button"
+                            onclick="document.getElementById('pdf-input').click()"
+                            class="text-indigo-400 hover:underline">browse</button></p>
+                    <p class="text-gray-500 text-sm mt-1">PDF only · Max 10 MB</p>
+                </div>
+                <div id="file-info" class="hidden">
+                    <div class="text-4xl mb-2">✅</div>
+                    <p id="file-name" class="text-white font-medium"></p>
+                    <p id="file-size" class="text-gray-400 text-sm"></p>
+                </div>
+            </div>
+
+            <!-- Progress -->
+            <div id="progress-wrap" class="hidden">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill" style="width:0%"></div>
+                </div>
+                <p id="progress-text" class="text-gray-400 text-xs mt-1 text-center">Uploading...</p>
+            </div>
+
+            <button type="submit" id="upload-btn" class="btn-primary w-full justify-center py-3" disabled>
+                📤 Upload PDF
+            </button>
+        </form>
+    </div>
+
+    <!-- Recent uploads -->
+    <div class="glass-card p-6 mt-6">
+        <h2 class="text-lg font-semibold text-white mb-4">Recent Uploads</h2>
+        <div id="uploads-list">
+            <p class="text-gray-500 text-sm text-center py-4">Upload a PDF to see it here.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    const recentUploads = [];
+
+    async function loadSems() {
+        const data = await apiCall('GET', '/api/admin/semesters');
+        const sems = data.semesters || [];
+        document.getElementById('sem-sel').innerHTML = `<option value="">Select semester</option>` +
+            sems.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await requireAuth(p => p?.role === 'admin');
+        loadSems();
+
+        const semSel = document.getElementById('sem-sel');
+        const subjSel = document.getElementById('subj-sel');
+        const unitSel = document.getElementById('unit-sel');
+        const dropZone = document.getElementById('drop-zone');
+        const pdfInput = document.getElementById('pdf-input');
+        const uploadBtn = document.getElementById('upload-btn');
+
+        semSel.addEventListener('change', async () => {
+            if (!semSel.value) return;
+            subjSel.disabled = true; subjSel.innerHTML = '<option>Loading...</option>';
+            unitSel.disabled = true; unitSel.innerHTML = '<option>Select subject first</option>';
+            const data = await apiCall('GET', `/api/admin/subjects/${semSel.value}`);
+            const subjects = data.subjects || [];
+            subjSel.innerHTML = `<option value="">Select subject</option>` + subjects.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            subjSel.disabled = false;
+        });
+
+        subjSel.addEventListener('change', async () => {
+            if (!subjSel.value) return;
+            unitSel.disabled = true; unitSel.innerHTML = '<option>Loading...</option>';
+            const data = await apiCall('GET', `/api/admin/units/${subjSel.value}`);
+            const units = data.units || [];
+            unitSel.innerHTML = `<option value="">Select unit</option>` + units.map(u => `<option value="${u.id}">Unit ${u.unitNumber}: ${u.title}</option>`).join('');
+            unitSel.disabled = false;
+            checkReady();
+        });
+
+        unitSel.addEventListener('change', checkReady);
+
+        function setFile(file) {
+            if (!file || !file.name.endsWith('.pdf')) { showToast('Only PDF files allowed', 'error'); return; }
+            if (file.size > 10 * 1024 * 1024) { showToast('File too large (max 10MB)', 'error'); return; }
+            document.getElementById('drop-text').classList.add('hidden');
+            document.getElementById('file-info').classList.remove('hidden');
+            document.getElementById('file-name').textContent = file.name;
+            document.getElementById('file-size').textContent = (file.size / 1024).toFixed(1) + ' KB';
+            checkReady();
+        }
+
+        function checkReady() {
+            uploadBtn.disabled = !(unitSel.value && pdfInput.files.length);
+        }
+
+        pdfInput.addEventListener('change', () => setFile(pdfInput.files[0]));
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault(); dropZone.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            // Transfer to input
+            const dt = new DataTransfer(); dt.items.add(file);
+            pdfInput.files = dt.files;
+            setFile(file);
+        });
+
+        document.getElementById('upload-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const unitId = unitSel.value;
+            const file = pdfInput.files[0];
+            if (!unitId || !file) return;
+
+            uploadBtn.disabled = true; uploadBtn.innerHTML = '⏳ Uploading...';
+            document.getElementById('progress-wrap').classList.remove('hidden');
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('unitId', unitId);
+
+            // Animate progress (XHR-based for real progress)
+            const xhr = new XMLHttpRequest();
+            const token = await getIdToken();
+            xhr.upload.addEventListener('progress', ev => {
+                const pct = Math.round((ev.loaded / ev.total) * 100);
+                document.getElementById('progress-fill').style.width = pct + '%';
+                document.getElementById('progress-text').textContent = `Uploading... ${pct}%`;
+            });
+            xhr.onload = () => {
+                const res = JSON.parse(xhr.responseText);
+                if (xhr.status === 201) {
+                    showToast(`"${file.name}" uploaded successfully! 🎉 Cached notes invalidated.`, 'success');
+                    recentUploads.unshift({ name: file.name, unit: unitSel.options[unitSel.selectedIndex].text });
+                    renderRecent();
+                    document.getElementById('upload-form').reset();
+                    document.getElementById('drop-text').classList.remove('hidden');
+                    document.getElementById('file-info').classList.add('hidden');
+                    document.getElementById('progress-wrap').classList.add('hidden');
+                    document.getElementById('progress-fill').style.width = '0%';
+                } else {
+                    showToast(res.error || 'Upload failed', 'error');
+                }
+                uploadBtn.disabled = false; uploadBtn.innerHTML = '📤 Upload PDF';
+            };
+            xhr.onerror = () => { showToast('Network error', 'error'); uploadBtn.disabled = false; uploadBtn.innerHTML = '📤 Upload PDF'; };
+            xhr.open('POST', '/api/upload/pdf');
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            xhr.send(formData);
+        });
+
+        function renderRecent() {
+            const list = document.getElementById('uploads-list');
+            list.innerHTML = recentUploads.length ? recentUploads.map(u => `
+      <div class="flex items-center gap-3 p-3 rounded-lg" style="background:rgba(255,255,255,0.05)">
+        <span class="text-xl">📄</span>
+        <div><p class="text-white text-sm font-medium">${u.name}</p><p class="text-gray-500 text-xs">${u.unit}</p></div>
+        <span class="badge badge-cached ml-auto">Uploaded</span>
+      </div>`).join('') : '<p class="text-gray-500 text-sm text-center py-4">No uploads this session.</p>';
+        }
+    });
+</script>
+{% endblock %}

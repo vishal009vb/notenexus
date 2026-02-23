@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}AI Quiz — NoteNexus{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-10">
+    <div id="quiz-loading" class="glass-card p-10 text-center">
+        <div class="spinner mx-auto mb-4"></div>
+        <h2 class="text-xl font-bold text-white">AI is generating your quiz...</h2>
+        <p class="text-gray-400 text-sm mt-2">This usually takes about 10-20 seconds.</p>
+    </div>
+
+    <div id="quiz-container" class="hidden space-y-6">
+        <div class="flex items-center justify-between mb-4">
+            <h1 id="quiz-title" class="text-2xl font-bold text-white">Quiz</h1>
+            <div class="px-3 py-1 bg-indigo-500/20 text-indigo-300 rounded-full text-sm font-medium">
+                Question <span id="current-idx">1</span>/<span id="total-qs">0</span>
+            </div>
+        </div>
+
+        <div class="glass-card p-8">
+            <h2 id="question-text" class="text-xl text-white font-semibold mb-6"></h2>
+            <div id="options-grid" class="grid gap-3">
+                <!-- Options will be injected here -->
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center">
+            <p id="score-text" class="text-gray-400 text-sm italic"></p>
+            <button id="next-btn" class="btn-primary hidden" onclick="nextQuestion()">Next Question →</button>
+        </div>
+    </div>
+
+    <div id="result-card" class="hidden glass-card p-10 text-center">
+        <div class="text-5xl mb-4">🎉</div>
+        <h2 class="text-2xl font-bold text-white mb-2">Quiz Completed!</h2>
+        <p class="text-gray-400 mb-6">You scored <span id="final-score" class="text-indigo-400 font-bold">0</span> out
+            of <span id="final-total">0</span></p>
+        <div class="flex gap-4 justify-center">
+            <button onclick="location.reload()" class="btn-primary">Try Again</button>
+            <a href="/dashboard"
+                class="px-6 py-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600 transition-colors">Go to
+                Dashboard</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .option-btn {
+        width: 100%;
+        text-align: left;
+        padding: 1rem 1.5rem;
+        border-radius: 0.75rem;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #ddd;
+        transition: all 0.2s;
+    }
+
+    .option-btn:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .option-btn.correct {
+        background: rgba(16, 185, 129, 0.2) !important;
+        border-color: #10B981 !important;
+        color: #10B981 !important;
+    }
+
+    .option-btn.wrong {
+        background: rgba(239, 68, 68, 0.2) !important;
+        border-color: #EF4444 !important;
+        color: #EF4444 !important;
+    }
+</style>
+
+<script>
+    let questions = [];
+    let currentIdx = 0;
+    let score = 0;
+    let answered = false;
+
+    const unitId = "{{ unit_id }}";
+
+    async function startQuiz() {
+        try {
+            const data = await apiCall('GET', `/api/notes/quiz/${unitId}`);
+            questions = data.quiz;
+            if (!questions || !questions.length) throw new Error("Could not generate quiz. Try again later.");
+
+            document.getElementById('quiz-loading').classList.add('hidden');
+            document.getElementById('quiz-container').classList.remove('hidden');
+            document.getElementById('total-qs').textContent = questions.length;
+            renderQuestion();
+        } catch (e) {
+            showToast(e.message, 'error');
+            setTimeout(() => location.href = '/dashboard', 2000);
+        }
+    }
+
+    function renderQuestion() {
+        answered = false;
+        const q = questions[currentIdx];
+        document.getElementById('current-idx').textContent = currentIdx + 1;
+        document.getElementById('question-text').textContent = q.question;
+        document.getElementById('next-btn').classList.add('hidden');
+        document.getElementById('score-text').textContent = "";
+
+        const grid = document.getElementById('options-grid');
+        grid.innerHTML = q.options.map((opt, i) => `
+            <button class="option-btn" onclick="checkAnswer(${i})">
+                <span class="inline-block w-8 text-indigo-400 font-bold">${String.fromCharCode(65 + i)}.</span>
+                ${opt}
+            </button>
+        `).join('');
+    }
+
+    function checkAnswer(idx) {
+        if (answered) return;
+        answered = true;
+
+        const q = questions[currentIdx];
+        const buttons = document.querySelectorAll('.option-btn');
+
+        if (idx === q.answer) {
+            buttons[idx].classList.add('correct');
+            score++;
+            showToast('Correct!', 'success');
+        } else {
+            buttons[idx].classList.add('wrong');
+            buttons[q.answer].classList.add('correct');
+            showToast('Wrong answer', 'error');
+        }
+
+        buttons.forEach(btn => btn.disabled = true);
+        document.getElementById('score-text').textContent = q.explanation || "";
+        document.getElementById('next-btn').classList.remove('hidden');
+    }
+
+    function nextQuestion() {
+        currentIdx++;
+        if (currentIdx < questions.length) {
+            renderQuestion();
+        } else {
+            document.getElementById('quiz-container').classList.add('hidden');
+            document.getElementById('result-card').classList.remove('hidden');
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('final-total').textContent = questions.length;
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        requireAuth();
+        startQuiz();
+    });
+</script>
+{% endblock %}

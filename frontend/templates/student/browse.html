@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% set page_type = "protected" %}
+{% block title %}Browse Notes — NoteNexus{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-10">
+  <h1 class="text-3xl font-bold text-white mb-2">📚 Browse Notes</h1>
+  <p class="text-gray-400 text-sm mb-8">KBCNMU BCA · NEP 2020 Syllabus</p>
+
+  <div id="breadcrumb" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div class="flex items-center gap-2 text-sm flex-wrap">
+      <button class="text-indigo-400 hover:text-indigo-300" onclick="goTo('semesters')">All Semesters</button>
+    </div>
+    <div class="relative w-full sm:w-64">
+      <input type="text" id="search-input" placeholder="Search subjects/units..."
+        class="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-4 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-colors"
+        oninput="handleSearch(this.value)">
+      <span class="absolute right-3 top-2.5 text-gray-500">🔍</span>
+    </div>
+  </div>
+
+  <!-- Content Area -->
+  <div id="browse-content">
+    <div class="flex justify-center py-16">
+      <div class="spinner"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let state = { view: 'semesters', semId: null, semName: '', subjId: null, subjName: '' };
+
+  function goTo(view, id, name) {
+    state.view = view;
+    if (view === 'subjects') { state.semId = id; state.semName = name; }
+    if (view === 'units') { state.subjId = id; state.subjName = name; }
+    updateBreadcrumb();
+    render();
+  }
+
+  function updateBreadcrumb() {
+    const bc = document.getElementById('breadcrumb');
+    const parts = [`<button class="text-indigo-400 hover:text-indigo-300" onclick="goTo('semesters')">All Semesters</button>`];
+    if (state.view !== 'semesters') parts.push(`<span class="text-gray-600">›</span>`,
+      `<button class="text-indigo-400 hover:text-indigo-300" onclick="goTo('subjects','${state.semId}','${state.semName}')">${state.semName}</button>`);
+    if (state.view === 'units') parts.push(`<span class="text-gray-600">›</span>`,
+      `<span class="text-white">${state.subjName}</span>`);
+    bc.innerHTML = parts.join(' ');
+  }
+
+  async function handleSearch(query) {
+    if (!query.trim()) { render(); return; }
+    const content = document.getElementById('browse-content');
+    content.innerHTML = '<div class="flex justify-center py-16"><div class="spinner"></div></div>';
+    try {
+      const semData = await apiCall('GET', '/api/admin/semesters');
+      const sems = semData.semesters || [];
+      let matches = [];
+      for (const sem of sems) {
+        const subData = await apiCall('GET', `/api/admin/subjects/${sem.id}`);
+        const subjects = subData.subjects || [];
+        subjects.filter(s => s.name.toLowerCase().includes(query.toLowerCase()))
+          .forEach(s => matches.push({ type: 'Subject', name: s.name, id: s.id, parent: sem.name, view: 'units' }));
+        for (const subj of subjects) {
+          const unitData = await apiCall('GET', `/api/admin/units/${subj.id}`);
+          const units = unitData.units || [];
+          units.filter(u => u.title.toLowerCase().includes(query.toLowerCase()))
+            .forEach(u => matches.push({ type: 'Unit', name: `Unit ${u.unitNumber}: ${u.title}`, id: u.id, parent: subj.name, view: 'notes' }));
+        }
+      }
+      if (!matches.length) {
+        content.innerHTML = '<p class="text-gray-500 text-center py-16">No matches found for "' + query + '"</p>';
+        return;
+      }
+      content.innerHTML = `
+        <div class="space-y-3">
+          ${matches.map(m => `
+            <div class="glass-card p-4 flex items-center justify-between cursor-pointer group" 
+                 onclick="${m.view === 'units' ? `goTo('units', '${m.id}', '${m.name}')` : `location.href='/notes/${m.id}'`}">
+              <div>
+                <span class="text-xs px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-400 mb-1 inline-block">${m.type}</span>
+                <p class="text-white font-medium group-hover:text-indigo-300 transition-colors text-sm">${m.name}</p>
+                <p class="text-gray-500 text-xs">${m.parent}</p>
+              </div>
+              <span class="text-indigo-400 text-sm">Open →</span>
+            </div>
+          `).join('')}
+        </div>`;
+    } catch (e) {
+      content.innerHTML = `<p class="text-red-400 text-sm text-center py-16">${e.message}</p>`;
+    }
+  }
+
+  async function render() {
+    const content = document.getElementById('browse-content');
+    content.innerHTML = '<div class="flex justify-center py-16"><div class="spinner"></div></div>';
+
+    if (state.view === 'semesters') {
+      const data = await apiCall('GET', '/api/admin/semesters');
+      const sems = data.semesters || [];
+      const colors = ['#4F46E5', '#7C3AED', '#06B6D4', '#10B981', '#F59E0B', '#EF4444'];
+      content.innerHTML = `
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        ${sems.map((s, i) => `
+          <div class="glass-card p-5 text-center cursor-pointer card-enter group hover:scale-105 transition-transform"
+               onclick="goTo('subjects','${s.id}','${s.name}')">
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-3" style="background:${colors[i % 6]}22;border:1px solid ${colors[i % 6]}55">
+              <span class="font-bold text-lg" style="color:${colors[i % 6]}">${i + 1}</span>
+            </div>
+            <p class="text-white font-semibold group-hover:text-indigo-300 transition-colors text-sm">${s.name}</p>
+          </div>`).join('') || '<p class="col-span-6 text-gray-500 text-center py-8">No semesters available yet.</p>'}
+      </div>`;
+    }
+
+    else if (state.view === 'subjects') {
+      const data = await apiCall('GET', `/api/admin/subjects/${state.semId}`);
+      const subjects = data.subjects || [];
+      content.innerHTML = `
+      <h2 class="text-xl font-bold text-white mb-4">${state.semName}</h2>
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        ${subjects.map(s => `
+          <div class="glass-card p-5 cursor-pointer card-enter group"
+               onclick="goTo('units','${s.id}','${s.name}')">
+            <div class="text-2xl mb-2">📖</div>
+            <p class="text-white font-semibold group-hover:text-indigo-300 transition-colors">${s.name}</p>
+            ${s.code ? `<p class="text-gray-500 text-xs mt-1">${s.code}</p>` : ''}
+            <p class="text-indigo-400 text-xs mt-2">View units →</p>
+          </div>`).join('') || '<p class="col-span-3 text-gray-500 text-center py-8">No subjects in this semester yet.</p>'}
+      </div>`;
+    }
+
+    else if (state.view === 'units') {
+      const data = await apiCall('GET', `/api/admin/units/${state.subjId}`);
+      const units = data.units || [];
+      const prog = await apiCall('GET', '/api/student/progress').catch(() => ({}));
+      const studentProgress = prog.progress || {};
+      content.innerHTML = `
+      <h2 class="text-xl font-bold text-white mb-4">${state.subjName} — Units</h2>
+      <div class="space-y-3">
+        ${units.map(u => {
+        const isDone = studentProgress[u.id] === 'learned';
+        return `
+          <a href="/notes/${u.id}" class="glass-card p-5 flex items-center justify-between no-underline block group card-enter ${isDone ? 'border-green-500/30' : ''}">
+            <div class="flex items-center gap-4">
+              <div class="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-sm"
+                   style="background:${isDone ? 'rgba(16,185,129,0.2)' : 'rgba(79,70,229,0.3)'};
+                          border:1px solid ${isDone ? 'rgba(16,185,129,0.4)' : 'rgba(79,70,229,0.5)'};
+                          color:${isDone ? '#10B981' : '#818CF8'}">
+                ${isDone ? '✓' : `U${u.unitNumber}`}
+              </div>
+              <div>
+                <p class="text-white font-medium group-hover:text-indigo-300 transition-colors">Unit ${u.unitNumber}: ${u.title}</p>
+                <div class="flex items-center gap-2 mt-1">
+                  <p class="text-gray-500 text-xs notes-status" data-unit="${u.id}">Checking...</p>
+                  ${isDone ? '<span class="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">Learned</span>' : ''}
+                </div>
+              </div>
+            </div>
+            <span class="text-indigo-400 text-sm">Open →</span>
+          </a>`;
+      }).join('') || '<p class="text-gray-500 text-center py-8">No units in this subject yet.</p>'}
+      </div>`;
+
+      // Check notes status for each unit
+      for (const u of units) {
+        apiCall('GET', `/api/notes/status/${u.id}`).then(d => {
+          const el = document.querySelector(`.notes-status[data-unit="${u.id}"]`);
+          if (el) el.innerHTML = d.hasNotes
+            ? `<span class="badge badge-cached">✓ Notes Ready</span>`
+            : `<span class="badge badge-new">⏳ Pending Generation</span>`;
+        }).catch(() => { });
+      }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    await requireAuth();
+    // Check URL params
+    const params = new URLSearchParams(window.location.search);
+    const semId = params.get('semId');
+    if (semId) {
+      try {
+        const data = await apiCall('GET', '/api/admin/semesters');
+        const sem = (data.semesters || []).find(s => s.id === semId);
+        if (sem) goTo('subjects', sem.id, sem.name);
+        else render();
+      } catch { render(); }
+    } else { render(); }
+  });
+</script>
+{% endblock %}

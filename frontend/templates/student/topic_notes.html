@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% set page_type = "protected" %}
+{% block title %}AI Topic Notes — NoteNexus{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div>
+            <div class="flex items-center gap-2 mb-1">
+                <a href="/dashboard" class="text-gray-400 hover:text-white text-sm">← Dashboard</a>
+            </div>
+            <h1 class="text-2xl font-bold text-white">Generate Notes from Topic</h1>
+            <p class="text-gray-400 text-sm mt-1">Enter any topic and NoteNexus will create detailed study material for
+                you.</p>
+        </div>
+        <button id="download-btn" class="btn-primary py-2.5 px-5" disabled onclick="downloadPDF()">
+            📥 Download PDF
+        </button>
+    </div>
+
+    <!-- Topic Input -->
+    <div id="input-section" class="glass-card p-6 mb-8">
+        <label for="topic-input" class="block text-gray-400 text-sm font-medium mb-2">Subject or Topic Name</label>
+        <div class="flex gap-3">
+            <input type="text" id="topic-input"
+                class="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                placeholder="e.g. Operating System, Database Management, Python Loops...">
+            <button onclick="generateNotes()" id="generate-btn" class="btn-primary px-6">✨ Generate</button>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loading-state" class="glass-card p-12 text-center hidden">
+        <div class="spinner mx-auto mb-4"></div>
+        <h2 class="text-xl font-semibold text-white mb-2">🤖 AI is researching and writing...</h2>
+        <p class="text-gray-400 text-sm">Our AI is generating exhaustive notes from its knowledge base. This may take
+            30–60 seconds.</p>
+        <div class="mt-4 progress-bar max-w-xs mx-auto">
+            <div id="gen-progress" class="progress-fill" style="width:5%;animation:grow 45s linear forwards"></div>
+        </div>
+    </div>
+
+    <!-- Notes View (hidden until loaded) -->
+    <div id="notes-view" class="hidden">
+        <h2 id="current-topic" class="text-xl font-bold text-indigo-400 mb-4"></h2>
+
+        <!-- Tab Navigation -->
+        <div class="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-1">
+            <button class="tab-btn active" data-tab="definitions" onclick="switchTab(this,'definitions')">📖
+                Definitions</button>
+            <button class="tab-btn" data-tab="key_points" onclick="switchTab(this,'key_points')">🔑 Key Points</button>
+            <button class="tab-btn" data-tab="short_notes" onclick="switchTab(this,'short_notes')">📝 Short
+                Notes</button>
+            <button class="tab-btn" data-tab="long_answers" onclick="switchTab(this,'long_answers')">📚 Long
+                Answers</button>
+            <button class="tab-btn" data-tab="important_questions" onclick="switchTab(this,'important_questions')">❓
+                Imp. Questions</button>
+            <button class="tab-btn" data-tab="quick_revision" onclick="switchTab(this,'quick_revision')">⚡ Quick
+                Revision</button>
+        </div>
+
+        <!-- Tab: Definitions -->
+        <div id="tab-definitions" class="tab-content active glass-card p-6">
+            <h2 class="text-lg font-bold text-white mb-4">📖 Definitions</h2>
+            <div id="defs-list" class="space-y-3"></div>
+        </div>
+
+        <!-- Tab: Key Points -->
+        <div id="tab-key_points" class="tab-content glass-card p-6">
+            <h2 class="text-lg font-bold text-white mb-4">🔑 Key Points</h2>
+            <ul id="kp-list" class="space-y-2"></ul>
+        </div>
+
+        <!-- Tab: Short Notes -->
+        <div id="tab-short_notes" class="tab-content glass-card p-6">
+            <h2 class="text-lg font-bold text-white mb-4">📝 Short Notes</h2>
+            <div id="sn-list" class="space-y-5"></div>
+        </div>
+
+        <!-- Tab: Long Answers -->
+        <div id="tab-long_answers" class="tab-content glass-card p-6">
+            <h2 class="text-lg font-bold text-white mb-4">📚 Long Answers</h2>
+            <div id="la-list" class="space-y-6"></div>
+        </div>
+
+        <!-- Tab: Important Questions -->
+        <div id="tab-important_questions" class="tab-content glass-card p-6">
+            <h2 class="text-lg font-bold text-white mb-4">❓ Important Questions</h2>
+            <ol id="iq-list" class="space-y-2 list-none"></ol>
+        </div>
+
+        <!-- Tab: Quick Revision -->
+        <div id="tab-quick_revision" class="tab-content glass-card p-6">
+            <h2 class="text-lg font-bold text-white mb-4">⚡ Quick Revision</h2>
+            <div id="qr-list" class="grid sm:grid-cols-2 gap-2"></div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes grow {
+        from {
+            width: 5%
+        }
+
+        to {
+            width: 90%
+        }
+    }
+</style>
+
+<script>
+    let notesData = null;
+    let currentTopic = "";
+
+    function switchTab(btn, tabName) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + tabName).classList.add('active');
+    }
+
+    async function generateNotes() {
+        const topic = document.getElementById('topic-input').value.trim();
+        if (!topic) return showToast('Please enter a topic', 'error');
+
+        document.getElementById('input-section').classList.add('hidden');
+        document.getElementById('loading-state').classList.remove('hidden');
+        document.getElementById('notes-view').classList.add('hidden');
+        document.getElementById('download-btn').disabled = true;
+
+        try {
+            const result = await apiCall('POST', '/api/notes/generate-topic', { topic });
+
+            document.getElementById('loading-state').classList.add('hidden');
+
+            if (result.status === 'error') {
+                showToast(result.message, 'error');
+                document.getElementById('input-section').classList.remove('hidden');
+                return;
+            }
+
+            notesData = result.notes;
+            currentTopic = topic;
+            document.getElementById('current-topic').textContent = `Topic: ${topic}`;
+            renderNotes(notesData);
+            document.getElementById('notes-view').classList.remove('hidden');
+            document.getElementById('download-btn').disabled = false;
+            showToast('Notes generated successfully! ✨', 'success');
+
+        } catch (e) {
+            showToast(e.message, 'error');
+            document.getElementById('loading-state').classList.add('hidden');
+            document.getElementById('input-section').classList.remove('hidden');
+        }
+    }
+
+    function renderNotes(notes) {
+        // Definitions
+        const defs = notes.definitions || [];
+        document.getElementById('defs-list').innerHTML = defs.map(d => `
+            <div class="def-card">
+              <p class="text-indigo-300 font-semibold text-sm mb-1">${escHtml(d.term || '')}</p>
+              <p class="text-gray-300 text-sm">${escHtml(d.definition || '')}</p>
+            </div>`).join('') || '<p class="text-gray-500">No definitions generated.</p>';
+
+        // Key Points
+        const kp = notes.key_points || [];
+        document.getElementById('kp-list').innerHTML = kp.map(p => `
+            <li class="flex items-start gap-2 text-gray-300 text-sm">
+              <span class="text-indigo-400 font-bold mt-0.5">•</span>
+              <span>${escHtml(String(p))}</span>
+            </li>`).join('') || '<p class="text-gray-500">No key points generated.</p>';
+
+        // Short Notes
+        const sn = notes.short_notes || [];
+        document.getElementById('sn-list').innerHTML = sn.map(n => `
+            <div class="p-4 rounded-lg" style="background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25)">
+              <p class="text-secondary font-semibold mb-2">${escHtml(n.title || '')}</p>
+              <p class="text-gray-300 text-sm leading-relaxed">${escHtml(n.content || '')}</p>
+            </div>`).join('') || '<p class="text-gray-500">No short notes generated.</p>';
+
+        // Long Answers
+        const la = notes.long_answers || [];
+        document.getElementById('la-list').innerHTML = la.map((a, i) => `
+            <div>
+              <div class="flex items-start gap-3 mb-3">
+                <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                     style="background:rgba(79,70,229,0.3);color:#818CF8">Q${i + 1}</div>
+                <p class="text-white font-semibold">${escHtml(a.question || '')}</p>
+              </div>
+              <div class="ml-10 bg-white/5 p-4 rounded-lg text-gray-300 text-sm leading-relaxed border-l-2 border-indigo-500">
+                ${escHtml(a.answer || '').replace(/\n/g, '<br/>')}
+              </div>
+            </div>`).join('') || '<p class="text-gray-500">No long answers generated.</p>';
+
+        // Important Questions
+        const iq = notes.important_questions || [];
+        document.getElementById('iq-list').innerHTML = iq.map((q, i) => `
+            <li class="flex items-start gap-3 p-3 rounded-lg" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2)">
+              <span class="text-yellow-400 font-bold text-sm w-5 flex-shrink-0">${i + 1}.</span>
+              <span class="text-gray-300 text-sm">${escHtml(String(q))}</span>
+            </li>`).join('') || '<p class="text-gray-500">No important questions generated.</p>';
+
+        // Quick Revision
+        const qr = notes.quick_revision || [];
+        document.getElementById('qr-list').innerHTML = qr.map(f => `
+            <div class="flex items-start gap-2 p-3 rounded-lg" style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2)">
+              <span class="text-green-400 flex-shrink-0">✓</span>
+              <span class="text-gray-300 text-sm">${escHtml(String(f))}</span>
+            </div>`).join('') || '<p class="text-gray-500">No quick revision facts generated.</p>';
+    }
+
+    function escHtml(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async function downloadPDF() {
+        if (!notesData) return;
+        const btn = document.getElementById('download-btn');
+        btn.disabled = true; btn.innerHTML = '⏳ Generating PDF...';
+        try {
+            const token = await getIdToken();
+            const res = await fetch('/api/export/pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ notes: notesData, unitTitle: currentTopic })
+            });
+            if (!res.ok) { const d = await res.json(); throw new Error(d.error); }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `NoteNexus_${currentTopic}.pdf`; a.click();
+            URL.revokeObjectURL(url);
+            showToast('PDF downloaded! 📥', 'success');
+        } catch (e) { showToast('PDF error: ' + e.message, 'error'); }
+        finally { btn.disabled = false; btn.innerHTML = '📥 Download PDF'; }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await requireAuth();
+    });
+</script>
+{% endblock %}

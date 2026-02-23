@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% set page_type = "protected" %}
+{% block title %}Dashboard — NoteNexus{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-10">
+    <!-- Welcome -->
+    <div class="glass-card p-6 mb-8 flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-white">👋 Welcome, <span id="welcome-name">Student</span>!</h1>
+            <p class="text-gray-400 text-sm mt-1">Your AI-powered BCA study companion — KBCNMU NEP 2020</p>
+        </div>
+        <span id="role-badge" class="badge badge-student">student</span>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="grid md:grid-cols-3 gap-4 mb-8">
+        <a href="/browse" class="glass-card p-5 no-underline block group">
+            <div class="text-2xl mb-2">📚</div>
+            <h3 class="text-white font-semibold group-hover:text-indigo-300 transition-colors">Browse Notes</h3>
+            <p class="text-gray-400 text-xs mt-1">View all semester notes</p>
+        </a>
+        <a href="/upload-notes" class="glass-card p-5 no-underline block group">
+            <div class="text-2xl mb-2">📤</div>
+            <h3 class="text-white font-semibold group-hover:text-indigo-300 transition-colors">Upload PDF</h3>
+            <p class="text-gray-400 text-xs mt-1">Contribute study material</p>
+        </a>
+        <a href="/generate-topic" class="glass-card p-5 no-underline block group border border-indigo-500/30">
+            <div class="text-2xl mb-2">✨</div>
+            <h3 class="text-white font-semibold group-hover:text-indigo-300 transition-colors">Generate from Topic</h3>
+            <p class="text-gray-400 text-xs mt-1">Create notes by name</p>
+        </a>
+        <a id="admin-card" href="/admin" class="glass-card p-5 no-underline block group" style="display:none">
+            <div class="text-2xl mb-2">⚙️</div>
+            <h3 class="text-white font-semibold group-hover:text-indigo-300 transition-colors">Admin Panel</h3>
+            <p class="text-gray-400 text-xs mt-1">Manage syllabus & content</p>
+        </a>
+    </div>
+
+    <!-- Semesters Grid -->
+    <h2 class="text-xl font-bold text-white mb-4">📅 Browse by Semester</h2>
+    <div id="sem-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+        <div class="col-span-full flex justify-center py-8">
+            <div class="spinner"></div>
+        </div>
+    </div>
+
+    <!-- Info Banner -->
+    <div class="glass-card p-5 flex flex-col md:flex-row items-start md:items-center gap-4">
+        <div class="text-3xl">🤖</div>
+        <div>
+            <h3 class="text-white font-semibold">How AI Notes Work</h3>
+            <p class="text-gray-400 text-sm mt-1">
+                When you open a unit, our AI reads uploaded PDFs and generates
+                <strong class="text-white">structured, exam-oriented notes</strong> just once —
+                then caches them forever so everyone benefits instantly.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const { profile } = await requireAuth();
+
+        document.getElementById('welcome-name').textContent = profile?.name || 'Student';
+        if (profile?.role === 'admin') {
+            document.getElementById('role-badge').textContent = 'Admin';
+            document.getElementById('role-badge').className = 'badge badge-admin';
+            document.getElementById('admin-card').style.display = 'block';
+        }
+
+        // Load semesters
+        const grid = document.getElementById('sem-grid');
+        try {
+            const data = await apiCall('GET', '/api/admin/semesters');
+            const sems = data.semesters || [];
+            const colors = ['#4F46E5', '#7C3AED', '#06B6D4', '#10B981', '#F59E0B', '#EF4444'];
+            grid.innerHTML = sems.length
+                ? sems.map((s, i) => `
+          <a href="/browse?semId=${s.id}" class="glass-card p-4 text-center no-underline block group">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2" style="background:${colors[i % 6]}33;border:1px solid ${colors[i % 6]}55">
+              <span class="text-lg font-bold" style="color:${colors[i % 6]}">${i + 1}</span>
+            </div>
+            <p class="text-white text-sm font-medium group-hover:text-indigo-300 transition-colors">${s.name}</p>
+          </a>`).join('')
+                : '<p class="col-span-full text-gray-500 text-center py-4">No semesters created yet. Ask admin to add content.</p>';
+        } catch (e) { grid.innerHTML = `<p class="col-span-full text-red-400 text-sm text-center py-4">${e.message}</p>`; }
+    });
+</script>
+{% endblock %}

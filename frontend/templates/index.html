@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}NoteNexus — AI BCA Notes Hub | KBCNMU{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="relative min-h-screen flex items-center justify-center overflow-hidden px-4">
+    <!-- Animated background orbs -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute -top-40 -left-40 w-96 h-96 rounded-full opacity-20"
+            style="background:radial-gradient(circle,#4F46E5,transparent);animation:pulse 4s ease-in-out infinite">
+        </div>
+        <div class="absolute -bottom-40 -right-40 w-96 h-96 rounded-full opacity-20"
+            style="background:radial-gradient(circle,#7C3AED,transparent);animation:pulse 4s ease-in-out infinite 2s">
+        </div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full opacity-10"
+            style="background:radial-gradient(circle,#06B6D4,transparent);animation:pulse 4s ease-in-out infinite 1s">
+        </div>
+    </div>
+
+    <div class="relative z-10 text-center max-w-4xl mx-auto">
+        <!-- Badge -->
+        <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6"
+            style="background:rgba(79,70,229,0.2);border:1px solid rgba(79,70,229,0.4)">
+            <span class="w-2 h-2 rounded-full bg-green-400 inline-block" style="animation:pulse 2s infinite"></span>
+            <span class="text-indigo-300">Vishal Bhoi</span>
+        </div>
+
+        <!-- Heading -->
+        <h1 class="text-5xl md:text-7xl font-extrabold leading-tight mb-6">
+            <span class="gradient-text">NoteNexus</span><br />
+            <span class="text-white text-3xl md:text-4xl font-semibold">AI BCA Notes Hub</span>
+        </h1>
+
+        <p class="text-gray-300 text-lg md:text-xl max-w-2xl mx-auto mb-4">
+            Get <strong class="text-white">exam-oriented, AI-generated notes</strong> for every unit of your BCA
+            syllabus.
+            Built specifically for <span class="text-indigo-300 font-semibold">KBCNMU Jalgaon</span> students following
+            <span class="text-cyan-400">NEP 2020</span>.
+        </p>
+        <p class="text-gray-500 text-sm mb-10">No ads. No paywalls. No limits. Just smart notes.</p>
+
+        <!-- CTA Buttons -->
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="/browse" class="btn-primary text-base py-3 px-8">
+                📚 Browse Notes
+            </a>
+            <a href="/register" class="btn-secondary text-base py-3 px-8">
+                🚀 Get Started Free
+            </a>
+        </div>
+
+        <!-- Stats Strip -->
+        <div class="mt-14 grid grid-cols-3 gap-6 max-w-lg mx-auto">
+            <div class="text-center">
+                <p class="text-3xl font-bold gradient-text">6</p>
+                <p class="text-gray-400 text-xs mt-1">Semesters</p>
+            </div>
+            <div class="text-center">
+                <p class="text-3xl font-bold gradient-text">AI</p>
+                <p class="text-gray-400 text-xs mt-1">Generated</p>
+            </div>
+            <div class="text-center">
+                <p class="text-3xl font-bold gradient-text">₹0</p>
+                <p class="text-gray-400 text-xs mt-1">Always Free</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-20 px-4">
+    <div class="max-w-6xl mx-auto">
+        <h2 class="text-center text-3xl font-bold text-white mb-2">How It Works</h2>
+        <p class="text-center text-gray-400 mb-12">Notes generated <em>once</em>, served <em>forever</em></p>
+
+        <div class="grid md:grid-cols-3 gap-6">
+            {% for step in [
+            ("01", "🎓", "Select Your Unit", "Choose Semester → Subject → Unit from KBCNMU BCA syllabus", "#4F46E5"),
+            ("02", "🤖", "AI Generates Notes", "Gemini AI reads uploaded PDFs and creates structured, exam-ready notes",
+            "#7C3AED"),
+            ("03", "📥", "Study & Download", "View 6 note categories and download a beautiful PDF for offline study",
+            "#06B6D4")
+            ] %}
+            <div class="glass-card p-6 card-enter">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center mb-4 text-2xl"
+                    style="background: {{ step[4] }}22; border: 1px solid {{ step[4] }}55">{{ step[1] }}</div>
+                <span class="text-xs font-bold tracking-widest" style="color: {{ step[4] }}">STEP {{ step[0] }}</span>
+                <h3 class="text-white font-bold text-lg mt-1 mb-2">{{ step[2] }}</h3>
+                <p class="text-gray-400 text-sm">{{ step[3] }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- Note Categories Section -->
+<section class="py-16 px-4">
+    <div class="max-w-6xl mx-auto">
+        <h2 class="text-center text-3xl font-bold text-white mb-2">6 Note Categories</h2>
+        <p class="text-center text-gray-400 mb-12">Everything you need to ace your KBCNMU exams</p>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {% for cat in [
+            ("📖", "Definitions", "Clear term-by-term explanations"),
+            ("🔑", "Key Points", "8-10 must-remember facts"),
+            ("📝", "Short Notes", "100-150 word exam answers"),
+            ("📚", "Long Answers", "300-400 word detailed answers"),
+            ("❓", "Important Qs", "Likely exam questions"),
+            ("⚡", "Quick Revision", "One-liner last minute facts")
+            ] %}
+            <div class="glass-card p-5 text-center">
+                <div class="text-3xl mb-2">{{ cat[0] }}</div>
+                <h3 class="text-white font-semibold mb-1">{{ cat[1] }}</h3>
+                <p class="text-gray-400 text-xs">{{ cat[2] }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+<section class="py-20 px-4">
+    <div class="max-w-2xl mx-auto text-center glass-card p-10">
+        <h2 class="text-3xl font-bold text-white mb-4">Ready to study smarter?</h2>
+        <p class="text-gray-400 mb-8">Join thousands of KBCNMU BCA students using AI-powered notes.</p>
+        <a href="/register" class="btn-primary text-base py-3 px-10">Create Free Account →</a>
+    </div>
+</section>
+
+<style>
+    @keyframes pulse {
+
+        0%,
+        100% {
+            transform: scale(1);
+            opacity: 0.2
+        }
+
+        50% {
+            transform: scale(1.1);
+            opacity: 0.35
+        }
+    }
+</style>
+{% endblock %}

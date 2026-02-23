@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="nn-page-type" content="{{ page_type | default('public') }}" />
+  <title>{% block title %}NoteNexus — AI BCA Notes Hub{% endblock %}</title>
+  <meta name="description" content="AI-powered BCA Notes Generator for KBCNMU students. NEP 2020 syllabus. Free." />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#4F46E5', secondary: '#7C3AED', accent: '#06B6D4'
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+
+  <!-- Global Firebase Config from Backend -->
+  <script>
+    window.firebaseConfig = {{ FIREBASE_CONFIG | tojson | safe }};
+  </script>
+
+  <!-- Firebase SDKs (compat for global firebase object) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <!-- Firebase Config + API helpers (must load before page scripts) -->
+  <script src="{{ url_for('static', filename='js/firebase-config.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+
+  {% block head_extra %}{% endblock %}
+</head>
+
+<body>
+
+  <!-- ── Toast Container ─────────────────────────────────────────── -->
+  <div id="toast-container"></div>
+
+  <!-- ── Navbar ─────────────────────────────────────────────────── -->
+  <nav class="navbar px-4 py-3">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+
+      <!-- Brand -->
+      <a href="/" class="flex items-center gap-2 no-underline">
+        <div class="w-8 h-8 rounded-lg flex items-center justify-center"
+          style="background: linear-gradient(135deg,#4F46E5,#7C3AED)">
+          <span class="text-white font-bold text-sm">NN</span>
+        </div>
+        <span class="text-white font-bold text-lg">NoteNexus</span>
+        <span class="text-xs text-gray-400 hidden sm:block">KBCNMU BCA</span>
+      </a>
+
+      <!-- Desktop Nav -->
+      <div class="hidden md:flex items-center gap-4">
+        <a href="/browse" class="text-gray-300 hover:text-white text-sm font-medium transition-colors">Browse Notes</a>
+        <a href="/upload-notes" class="text-gray-300 hover:text-white text-sm font-medium transition-colors">Generate
+          Notes</a>
+        <a id="nav-admin-link" href="/admin"
+          class="text-gray-300 hover:text-white text-sm font-medium transition-colors" style="display:none">Admin
+          Panel</a>
+
+        <!-- Not logged in -->
+        <div id="nav-login-btn" class="flex items-center gap-2">
+          <a href="/login" class="btn-secondary text-sm py-1.5 px-4">Sign In</a>
+          <a href="/register" class="btn-primary   text-sm py-1.5 px-4">Sign Up</a>
+        </div>
+
+        <!-- Logged in -->
+        <div id="nav-user-menu" class="flex items-center gap-3" style="display:none">
+          <a href="/dashboard" class="text-gray-300 hover:text-white text-sm">Dashboard</a>
+          <span id="nav-user-badge" class="badge badge-student">student</span>
+          <span id="nav-user-name" class="text-white text-sm font-medium"></span>
+          <button id="logout-btn" class="btn-secondary text-sm py-1.5 px-3">Logout</button>
+        </div>
+      </div>
+
+      <!-- Mobile Menu Toggle -->
+      <button id="mobile-menu-btn" class="md:hidden text-gray-300 hover:text-white">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Mobile Nav -->
+    <div id="mobile-menu" class="hidden md:hidden mt-3 pb-3 border-t border-white/10">
+      <div class="flex flex-col gap-1 pt-3 px-4">
+        <a href="/browse" class="sidebar-item">📚 Browse Notes</a>
+        <a href="/dashboard" class="sidebar-item">🏠 Dashboard</a>
+        <a id="mob-admin" href="/admin" class="sidebar-item" style="display:none">⚙️ Admin Panel</a>
+        <a href="/login" class="sidebar-item">🔐 Sign In</a>
+        <button id="mob-logout" class="sidebar-item text-left" style="display:none">🚪 Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── Page Content ────────────────────────────────────────────── -->
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ── Footer ──────────────────────────────────────────────────── -->
+  <footer class="mt-16 py-8 border-t border-white/10">
+    <div class="max-w-7xl mx-auto px-4 text-center">
+      <p class="text-gray-400 text-sm">
+        <span class="gradient-text font-bold">NoteNexus</span> &nbsp;·&nbsp;
+        AI-Powered BCA Notes for KBCNMU Students &nbsp;·&nbsp;
+        NEP 2020 &nbsp;·&nbsp;
+        <span class="text-green-400">₹0 Cost</span>
+      </p>
+      <p class="text-gray-600 text-xs mt-1">Powered by Vishal Bhoi</p>
+    </div>
+  </footer>
+
+  <!-- Mobile menu toggle script -->
+  <script>
+    const mBtn = document.getElementById("mobile-menu-btn");
+    const mMenu = document.getElementById("mobile-menu");
+    if (mBtn) mBtn.addEventListener("click", () => mMenu.classList.toggle("hidden"));
+
+    // Sync mobile logout
+    const mobLogout = document.getElementById("mob-logout");
+    const deskLogout = document.getElementById("logout-btn");
+    if (mobLogout && deskLogout) mobLogout.addEventListener("click", () => deskLogout.click());
+  </script>
+
+  {% block scripts %}{% endblock %}
+
+</body>
+
+</html>

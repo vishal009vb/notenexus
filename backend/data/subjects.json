@@ -1,0 +1,114 @@
+[
+  {
+    "id": "521f27cc-afa6-4b0d-891e-f1c0ca09cd6f",
+    "semesterId": "333ac4d9-3943-41df-bf03-814bd01b7583",
+    "name": "CA-111 \u2013 Essential of Computers and Programming",
+    "code": "",
+    "createdAt": "2026-02-23T13:44:55.823328"
+  },
+  {
+    "id": "f2c4a2a7-f86a-4820-b1d8-e308af0bf249",
+    "semesterId": "333ac4d9-3943-41df-bf03-814bd01b7583",
+    "name": "CA-112 \u2013 Programming using C++",
+    "code": "",
+    "createdAt": "2026-02-23T13:45:13.037377"
+  },
+  {
+    "id": "4ba73f2e-aa75-4965-9f2f-acf6047e04b0",
+    "semesterId": "333ac4d9-3943-41df-bf03-814bd01b7583",
+    "name": "CA-114 \u2013 Office Management Tools",
+    "code": "",
+    "createdAt": "2026-02-23T13:46:25.508952"
+  },
+  {
+    "id": "ffc6f9b9-1a0d-46e3-b5d2-a631b852c7d1",
+    "semesterId": "333ac4d9-3943-41df-bf03-814bd01b7583",
+    "name": "CA-115 \u2013 Web Design-I",
+    "code": "",
+    "createdAt": "2026-02-23T13:46:41.136734"
+  },
+  {
+    "id": "ccb453cc-b689-4693-ab26-b575380aa476",
+    "semesterId": "333ac4d9-3943-41df-bf03-814bd01b7583",
+    "name": "OE Basket (Select any one)",
+    "code": "",
+    "createdAt": "2026-02-23T13:46:55.701710"
+  },
+  {
+    "id": "55cac02c-b624-4451-8ff5-fd022acf2e1a",
+    "semesterId": "333ac4d9-3943-41df-bf03-814bd01b7583",
+    "name": "SEC Course",
+    "code": "",
+    "createdAt": "2026-02-23T14:15:16.741493"
+  },
+  {
+    "id": "6359ff55-95bd-4a4d-953b-c96f766fb2d3",
+    "semesterId": "333ac4d9-3943-41df-bf03-814bd01b7583",
+    "name": "VSC Course ,AEC Course  IKS Course  CC Course",
+    "code": "",
+    "createdAt": "2026-02-23T14:15:51.271932"
+  },
+  {
+    "id": "ff231e7b-468e-4308-8ad2-83eacee243d4",
+    "semesterId": "b10f61f6-0047-436f-9e5e-e0f2ca67f0dc",
+    "name": "CA-121 \u2013 Object Oriented Programming in C++",
+    "code": "CA-121",
+    "createdAt": "2026-02-23T14:16:27.120266"
+  },
+  {
+    "id": "447b4029-e64d-4b8b-9e5d-6880f854b99d",
+    "semesterId": "b10f61f6-0047-436f-9e5e-e0f2ca67f0dc",
+    "name": "CA-122 \u2013 Introduction to Operating System",
+    "code": "",
+    "createdAt": "2026-02-23T14:17:53.401744"
+  },
+  {
+    "id": "a7eb29f1-fa48-45b0-9a11-3dd3f560778f",
+    "semesterId": "b10f61f6-0047-436f-9e5e-e0f2ca67f0dc",
+    "name": "CA-123 \u2013 Practical based on CA-121 and CA-122",
+    "code": "",
+    "createdAt": "2026-02-23T14:18:02.342161"
+  },
+  {
+    "id": "68fb099e-b2db-4c70-855e-2066be28e05c",
+    "semesterId": "333ac4d9-3943-41df-bf03-814bd01b7583",
+    "name": "CA-124(A) \u2013 Basics of Management",
+    "code": "",
+    "createdAt": "2026-02-23T14:18:16.836338"
+  },
+  {
+    "id": "36fb2c5c-c939-4802-9073-deddd5c96bfa",
+    "semesterId": "b10f61f6-0047-436f-9e5e-e0f2ca67f0dc",
+    "name": "CA-124(B) \u2013 Basic Mathematics for Computing",
+    "code": "",
+    "createdAt": "2026-02-23T14:18:47.275823"
+  },
+  {
+    "id": "821205c0-38b4-4961-a002-d784864c049b",
+    "semesterId": "b10f61f6-0047-436f-9e5e-e0f2ca67f0dc",
+    "name": "OE-3 Course",
+    "code": "",
+    "createdAt": "2026-02-23T14:18:54.031413"
+  },
+  {
+    "id": "cfb4ac84-4ee6-46f2-b752-f7cb6f198085",
+    "semesterId": "b10f61f6-0047-436f-9e5e-e0f2ca67f0dc",
+    "name": "VSC-2 \u2013 Web Design-II",
+    "code": "",
+    "createdAt": "2026-02-23T14:19:42.080048"
+  },
+  {
+    "id": "c5325b01-5b63-4c97-80f4-b5386fd9e759",
+    "semesterId": "b10f61f6-0047-436f-9e5e-e0f2ca67f0dc",
+    "name": "SEC-2 \u2013 Introduction to Graphics Design",
+    "code": "",
+    "createdAt": "2026-02-23T14:19:55.387374"
+  },
+  {
+    "id": "bfff6fda-551a-4e00-97d2-73c2b62abe8a",
+    "semesterId": "b10f61f6-0047-436f-9e5e-e0f2ca67f0dc",
+    "name": "AEC Course  Or VEC Course Or  CC Course",
+    "code": "",
+    "createdAt": "2026-02-23T14:20:28.498075"
+  }
+]

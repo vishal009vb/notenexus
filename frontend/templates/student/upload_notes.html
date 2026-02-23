@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% set page_type = "protected" %}
+{% block title %}Upload Notes — NoteNexus{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-10">
+    <div class="flex items-center gap-3 mb-8">
+        <a href="/dashboard" class="text-gray-400 hover:text-white text-sm">← Dashboard</a>
+        <span class="text-gray-600">/</span>
+        <h1 class="text-2xl font-bold text-white">Upload Study Notes</h1>
+    </div>
+
+    <div class="glass-card p-8 mb-6">
+        <p class="text-gray-400 text-sm mb-6">
+            📚 Upload your handwritten or typed notes PDF. Our AI will process them along with other materials
+            to generate better structured notes for everyone.
+        </p>
+
+        <form id="upload-form" class="space-y-5">
+            <div class="grid md:grid-cols-3 gap-4">
+                <div>
+                    <label class="text-sm text-gray-300 mb-1 block">Semester *</label>
+                    <select id="sem-sel" class="form-input" required>
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-300 mb-1 block">Subject *</label>
+                    <select id="subj-sel" class="form-input" required disabled>
+                        <option value="">Select semester first</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-300 mb-1 block">Unit *</label>
+                    <select id="unit-sel" class="form-input" required disabled>
+                        <option value="">Select subject first</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Drop Zone -->
+            <div id="drop-zone" class="drop-zone" onclick="document.getElementById('pdf-input').click()">
+                <input id="pdf-input" type="file" accept=".pdf" class="hidden" />
+                <div id="drop-text">
+                    <div class="text-4xl mb-2">📄</div>
+                    <p class="text-white font-medium">Click or drop PDF here</p>
+                    <p class="text-gray-500 text-sm mt-1">PDF only · Max 10 MB</p>
+                </div>
+                <div id="file-info" class="hidden">
+                    <div class="text-4xl mb-2">✅</div>
+                    <p id="file-name" class="text-white font-medium"></p>
+                    <p id="file-size" class="text-gray-400 text-sm"></p>
+                </div>
+            </div>
+
+            <div id="progress-wrap" class="hidden">
+                <div class="progress-bar">
+                    <div id="progress-fill" class="progress-fill" style="width:0%"></div>
+                </div>
+                <p id="progress-text" class="text-gray-400 text-xs mt-1 text-center">Uploading...</p>
+            </div>
+
+            <button type="submit" id="upload-btn" class="btn-primary w-full justify-center py-3" disabled>
+                📤 Upload Notes
+            </button>
+        </form>
+    </div>
+
+    <div class="glass-card p-5">
+        <h3 class="text-white font-semibold mb-2">💡 Guidelines</h3>
+        <ul class="text-gray-400 text-sm space-y-1">
+            <li>• Upload notes in PDF format (scanned or digital)</li>
+            <li>• For scanned PDFs, ensure text is clear and readable</li>
+            <li>• Select the correct semester, subject, and unit</li>
+            <li>• After upload, AI notes regenerate automatically</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        await requireAuth();
+        // Reuse same upload logic as admin upload page (cascade selectors + XHR upload)
+        const data = await apiCall('GET', '/api/admin/semesters');
+        const sems = data.semesters || [];
+        document.getElementById('sem-sel').innerHTML = `<option value="">Select semester</option>` +
+            sems.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+
+        const semSel = document.getElementById('sem-sel');
+        const subjSel = document.getElementById('subj-sel');
+        const unitSel = document.getElementById('unit-sel');
+        const pdfInput = document.getElementById('pdf-input');
+        const uploadBtn = document.getElementById('upload-btn');
+
+        semSel.addEventListener('change', async () => {
+            if (!semSel.value) return;
+            subjSel.disabled = true; subjSel.innerHTML = '<option>Loading...</option>';
+            unitSel.disabled = true; unitSel.innerHTML = '<option>Select subject first</option>';
+            const d = await apiCall('GET', `/api/admin/subjects/${semSel.value}`);
+            subjSel.innerHTML = `<option value="">Select subject</option>` +
+                (d.subjects || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            subjSel.disabled = false;
+        });
+
+        subjSel.addEventListener('change', async () => {
+            if (!subjSel.value) return;
+            unitSel.disabled = true; unitSel.innerHTML = '<option>Loading...</option>';
+            const d = await apiCall('GET', `/api/admin/units/${subjSel.value}`);
+            unitSel.innerHTML = `<option value="">Select unit</option>` +
+                (d.units || []).map(u => `<option value="${u.id}">Unit ${u.unitNumber}: ${u.title}</option>`).join('');
+            unitSel.disabled = false;
+            checkReady();
+        });
+
+        unitSel.addEventListener('change', checkReady);
+
+        pdfInput.addEventListener('change', () => {
+            const file = pdfInput.files[0]; if (!file) return;
+            document.getElementById('drop-text').classList.add('hidden');
+            document.getElementById('file-info').classList.remove('hidden');
+            document.getElementById('file-name').textContent = file.name;
+            document.getElementById('file-size').textContent = (file.size / 1024).toFixed(1) + ' KB';
+            checkReady();
+        });
+
+        const dropZone = document.getElementById('drop-zone');
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault(); dropZone.classList.remove('drag-over');
+            const dt = new DataTransfer(); dt.items.add(e.dataTransfer.files[0]);
+            pdfInput.files = dt.files; pdfInput.dispatchEvent(new Event('change'));
+        });
+
+        function checkReady() { uploadBtn.disabled = !(unitSel.value && pdfInput.files.length); }
+
+        document.getElementById('upload-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            uploadBtn.disabled = true; uploadBtn.innerHTML = '⏳ Uploading...';
+            document.getElementById('progress-wrap').classList.remove('hidden');
+            const token = await getIdToken();
+            const formData = new FormData();
+            formData.append('file', pdfInput.files[0]);
+            formData.append('unitId', unitSel.value);
+            const xhr = new XMLHttpRequest();
+            xhr.upload.addEventListener('progress', ev => {
+                const pct = Math.round((ev.loaded / ev.total) * 100);
+                document.getElementById('progress-fill').style.width = pct + '%';
+                document.getElementById('progress-text').textContent = `Uploading... ${pct}%`;
+            });
+            xhr.onload = () => {
+                const res = JSON.parse(xhr.responseText);
+                if (xhr.status === 201) {
+                    showToast('Notes uploaded! AI will incorporate your content 🎉', 'success');
+                    setTimeout(() => window.location.href = `/notes/${unitSel.value}`, 1500);
+                } else { showToast(res.error || 'Upload failed', 'error'); uploadBtn.disabled = false; uploadBtn.innerHTML = '📤 Upload Notes'; }
+            };
+            xhr.onerror = () => { showToast('Network error', 'error'); uploadBtn.disabled = false; uploadBtn.innerHTML = '📤 Upload Notes'; };
+            xhr.open('POST', '/api/upload/pdf');
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            xhr.send(formData);
+        });
+    });
+</script>
+{% endblock %}
